@@ -8,7 +8,6 @@ import os
 from dotenv import load_dotenv
 import yt_dlp as youtube_dl
 from _collections import deque
-import json
 
 
 class Queue:
@@ -44,7 +43,7 @@ youtube_dl.utils.bug_reports_message = lambda: ''
 ytdl_format_options = {
     'format': 'bestaudio/best',
     'restrictfilenames': True,
-    'noplaylist': True,
+    'noplaylist': False,
     'nocheckcertificate': True,
     'ignoreerrors': False,
     'logtostderr': False,
@@ -68,7 +67,6 @@ class YTDLSource(discord.PCMVolumeTransformer):
         self.data = data
         self.title = data.get('title')
         self.url = ""
-        self.duration = data.get('duration')
 
     @classmethod
     async def from_url(cls, url, *, loop=None, stream=False):
@@ -127,16 +125,20 @@ async def addToList(ctx, url):
 async def playNow(ctx, url):
     server = ctx.message.guild
     voice_channel = server.voice_client
-    async with ctx.typing():
-        url = analyze_input(url)
-        filename = await YTDLSource.from_url(url = url, loop = bot.loop)
-        print('playing {}'.format(filename))
-        await ctx.send('Filename added to play now!:  {}'.format(filename))
-        await play_music(ctx, filename)
-        await ctx.send('[+]Now playing[+] {}'.format(filename))
-        while voice_channel.is_playing() is True:
-            await asyncio.sleep(1)
-    await ctx.send('Done with song!')
+    if not voice_channel.is_playing():
+        async with ctx.typing():
+            url = analyze_input(url)
+            filename = await YTDLSource.from_url(url = url, loop = bot.loop)
+            print('playing {}'.format(filename))
+            await ctx.send('Filename added to play now!:  {}'.format(filename))
+            await play_music(ctx, filename)
+            await ctx.send('[+]Now playing[+] {}'.format(filename))
+            while voice_channel.is_playing() is True:
+                await asyncio.sleep(1)
+        await ctx.send('Done with song!')
+    else:
+        await ctx.send("Already playing a song!")
+
 
 @bot.command(name='play', help='play list of songs')
 async def play_list(ctx):
@@ -172,7 +174,7 @@ def search_youtube(keyword) -> str:  # thank you youtube
         with youtube_dl.YoutubeDL(ytdl_format_options) as ydl:
             info = ydl.extract_info('ytsearch:' + keyword + ' --max-downloads 1', download=False)['entries'][0] # grab the first instance
     except Exception:
-        print(Exception.__str__())
+        print(str(Exception))
         return 'ERROR'
     return info['webpage_url'] # subject to change as youtube is a pain...
 
@@ -213,11 +215,11 @@ async def play_music(ctx, song):
         async with ctx.typing():
             voice_channel.play(discord.FFmpegPCMAudio(executable="ffmpeg.exe", source=song))
     except Exception:
-        print(Exception)
+        print(str(Exception))
         await ctx.send('Bot not in channel')
 
 
-@bot.command(name='pause', help='This command pauses the song')
+@bot.command(name='skip', help='This command skips the song') # because we have a loop pausing it will end the song
 async def pause(ctx):
     voice_client = ctx.message.guild.voice_client
     if voice_client.is_playing():
