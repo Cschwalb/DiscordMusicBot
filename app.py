@@ -8,8 +8,8 @@ import os
 from dotenv import load_dotenv
 import yt_dlp as youtube_dl
 from _collections import deque
-import ytmusicapi
 import json
+
 
 class Queue:
     def __init__(self, *elements):
@@ -33,7 +33,6 @@ load_dotenv()
 
 # Get the API token from the .env file.
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-yt_search = ytmusicapi.YTMusic()
 songQueue = Queue()
 lastSong = ""
 intents = discord.Intents().all()
@@ -110,19 +109,33 @@ async def leave(ctx):
         await ctx.send("The bot is not connected to a voice channel.")
 
 
-@bot.command(name='add', help = 'adds to playlist')
-async def addToList(ctx, url:str):
+@bot.command(name='add', help='adds to playlist')
+async def addToList(ctx, url):
     print(url)
     server = ctx.message.guild
     voice_channel = server.voice_client
     async with ctx.typing():
         url = analyze_input(url)
-        filename = await YTDLSource.from_url(url=url, loop = bot.loop)
+        filename = await YTDLSource.from_url(url=url, loop=bot.loop)
         songQueue.enqueue(filename)
         print("added file to enqueue")
         print(filename)
         await ctx.send('Filename added to queue:  {}'.format(filename))
 
+
+@bot.command(name='p', help='plays song from youtube or link')
+async def playNow(ctx, url):
+    server = ctx.message.guild
+    voice_channel = server.voice_client
+    async with ctx.typing():
+        url = analyze_input(url)
+        filename = await YTDLSource.from_url(url = url, loop = bot.loop)
+        print('playing {}'.format(filename))
+        await ctx.send('Filename added to play now!:  {}'.format(filename))
+        await play_music(ctx, filename)
+        await ctx.send('[+]Now playing[+] {}'.format(filename))
+        while voice_channel.is_playing() is True:
+            await asyncio.sleep(1)
 
 @bot.command(name='play', help='play list of songs')
 async def play_list(ctx):
@@ -132,38 +145,36 @@ async def play_list(ctx):
         async with ctx.typing():
             if len(songQueue) > 0:
                 for song in list(songQueue):
-                    print(song)
                     await play_music(ctx, song)
                     await ctx.send('[+]Now playing[+] {}'.format(song))
                     while voice_channel.is_playing() is True:
                         await asyncio.sleep(1)
             else:
+
                 await ctx.send('no songs queued')
     else:
         await ctx.send('playing a song already')
 
 
-def analyze_input(input):
+def analyze_input(analysis):
     output = ""
-    if "http" in input is True:
-        output = input
+    if "http" in analysis:
+        print('url analyzed!')
+        output = analysis
     else:
-        output = search_youtube(input)
-    print(output)
+        output = search_youtube(analysis)
     return output
 
 
-def search_youtube(keyword:str)->str:#thank you youtube
+def search_youtube(keyword) -> str:  # thank you youtube
     try:
-        # info = yt_dlp.YoutubeDL().extract_info(keyword, download= False)
-        # for result in info:
-        #     print(result["title"])
         with youtube_dl.YoutubeDL(ytdl_format_options) as ydl:
-            info = ydl.extract_info('ytsearch5:' + keyword, download=False)['entries'][0]
+            info = ydl.extract_info('ytsearch:' + keyword + ' --max-downloads 1', download=False)['entries'][0] # grab the first instance
     except Exception:
         print(Exception.__str__())
-        return False
-    return info['webpage_url']
+        return 'ERROR'
+    return info['webpage_url'] # subject to change as youtube is a pain...
+
 
 @bot.command(name='playsingle', help='To play song')
 async def play(ctx, url):
@@ -177,12 +188,9 @@ async def play(ctx, url):
         await ctx.send('added new file to queue')
         for song in list(songQueue):
             print(song)
-            while voice_channel.is_playing():
-                await asyncio.sleep(2)
-            # voice_channel.play(discord.FFmpegPCMAudio(executable="ffmpeg.exe", source=song)) # maybe remove await
             await play_music(ctx, song)
             await ctx.send('[+]Now playing[+] {}'.format(song))
-            if songQueue.__len__() > 0: #just do a check to avoid any exceptions
+            if songQueue.__len__() > 0:  # just do a check to avoid any exceptions
                 songQueue.dequeue()
                 await ctx.send('dequeued a song')
 
@@ -190,22 +198,23 @@ async def play(ctx, url):
 @bot.command(name='cleanup', help='Cleans up webm files')
 async def remove_files(ctx):
     async with ctx.typing():
-        files = os.listdir('.') #thank you stackoverflow
+        files = os.listdir('.')  # thank you stackoverflow
         for file in files:
             if file.endswith('.webm'):
                 os.remove(file)
                 await ctx.send('Bot deleting one file!')
 
 
-
-async def play_music(ctx, song:str):
+async def play_music(ctx, song):
     try:
         server = ctx.message.guild
         voice_channel = server.voice_client
         async with ctx.typing():
             voice_channel.play(discord.FFmpegPCMAudio(executable="ffmpeg.exe", source=song))
-    except:
+    except Exception:
+        print(Exception)
         await ctx.send('Bot not in channel')
+
 
 @bot.command(name='pause', help='This command pauses the song')
 async def pause(ctx):
@@ -242,4 +251,3 @@ async def roll_20(ctx):
 
 if __name__ == "__main__":
     bot.run(DISCORD_TOKEN)
-
