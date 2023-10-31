@@ -136,6 +136,7 @@ async def playNow(ctx, url):
         await ctx.send('[+]Now playing[+] {}'.format(filename))
         while voice_channel.is_playing() is True:
             await asyncio.sleep(1)
+        await ctx.send('Done with song!')
 
 @bot.command(name='play', help='play list of songs')
 async def play_list(ctx):
