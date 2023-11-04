@@ -9,7 +9,6 @@ from dotenv import load_dotenv
 import yt_dlp as youtube_dl
 from _collections import deque
 
-
 class Queue:
     def __init__(self, *elements):
         self._elements = deque(elements)
@@ -32,7 +31,6 @@ load_dotenv()
 # Get the API token from the .env file.
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 songQueue = Queue()
-lastSong = ""
 intents = discord.Intents().all()
 client = discord.Client(intents=intents)
 bot = commands.Bot(command_prefix='!', intents=intents)
@@ -135,7 +133,8 @@ async def playNow(ctx, url):
                 await asyncio.sleep(1)
         await ctx.send('Done with song!')
     else:
-        await ctx.send("Already playing a song!")
+        await ctx.send("Already playing a song! adding to queue, use !play to use that queue")
+        await addToList(ctx, url)
 
 
 @bot.command(name='play', help='play list of songs')
@@ -154,7 +153,7 @@ async def play_list(ctx):
 
                 await ctx.send('no songs queued')
     else:
-        await ctx.send('playing a song already')
+        await ctx.send('playing a song already.  Cannot update queue at this time.')
 
 
 def analyze_input(analysis):
@@ -186,13 +185,40 @@ async def play(ctx, url):
         songQueue.enqueue(filename)
         print("added song to queue")
         await ctx.send('added new file to queue')
-        for song in list(songQueue):
-            print(song)
-            await play_music(ctx, song)
-            await ctx.send('[+]Now playing[+] {}'.format(song))
+        while songQueue.__len__() > 0:
+            url = songQueue.dequeue()
+            print(url)
+            await play_music(ctx, url)
+            await ctx.send('[+]Now playing[+] {}'.format(url))
             if songQueue.__len__() > 0:  # just do a check to avoid any exceptions
                 songQueue.dequeue()
                 await ctx.send('dequeued a song')
+
+@bot.command(name='test1', help='testing this application command')
+async def test(ctx, url):
+    server = ctx.message.guild
+    voice_channel = server.voice_client
+    url = analyze_input(url=url)
+    filename = await YTDLSource.from_url(url=url, loop=bot.loop)
+    songQueue.enqueue(filename)
+    if voice_channel.is_playing():
+        async with ctx.typing():
+            await ctx.send('Song is playing!  adding to queue')
+    else:
+        async with ctx.typing():
+            await ctx.send('Song is added to queue!  Starting play!')
+            while len(songQueue) > 0:
+                url = songQueue.dequeue()
+                print(url)
+                print("From test app")
+                print(filename)
+                await play_music(ctx, filename)
+                await ctx.send('[+]Now playing[+] {}'.format(filename))
+                while voice_channel.is_playing() is True:
+                    await asyncio.sleep(2)
+                await ctx.send('Done with song!')
+
+
 
 
 @bot.command(name='cleanup', help='Cleans up webm files')
@@ -217,7 +243,7 @@ async def play_music(ctx, song):
 
 
 @bot.command(name='skip', help='This command skips the song') # because we have a loop pausing it will end the song
-async def pause(ctx):
+async def skip(ctx):
     voice_client = ctx.message.guild.voice_client
     if voice_client.is_playing():
         await voice_client.pause()
