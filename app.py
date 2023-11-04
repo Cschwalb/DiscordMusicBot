@@ -194,6 +194,7 @@ async def play(ctx, url):
                 songQueue.dequeue()
                 await ctx.send('dequeued a song')
 
+
 @bot.command(name='test1', help='testing this application command')
 async def test(ctx, url):
     server = ctx.message.guild
@@ -219,8 +220,6 @@ async def test(ctx, url):
                 while voice_channel.is_playing() is True:
                     await asyncio.sleep(2)
                 await ctx.send('Done with song!')
-
-
 
 
 @bot.command(name='cleanup', help='Cleans up webm files')
