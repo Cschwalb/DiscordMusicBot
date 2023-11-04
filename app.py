@@ -199,8 +199,13 @@ async def play(ctx, url):
 async def play_now(ctx, url):
     server = ctx.message.guild
     voice_channel = server.voice_client
+    if not ctx.message.author.voice:
+        ctx.send('Bot not in channel, attempting to join...')
+        await join(ctx)
+
     url = analyze_input(url)
     filename = await YTDLSource.from_url(url=url, loop=bot.loop)
+    print('queueing {} from playnow function!'.format(filename))  # let's have logs because why not?
     if voice_channel.is_playing():
         async with ctx.typing():
             await ctx.send('Song is playing!  adding to queue {}'.format(filename))
@@ -209,16 +214,12 @@ async def play_now(ctx, url):
         async with ctx.typing():
             await ctx.send('Song {} is added to queue!  Starting play!'.format(filename))
             songQueue.enqueue(filename)
-            print(filename)
-            print('added to queue')
             while len(songQueue) > 0:
                 filename = songQueue.dequeue()
-                print(filename)
-                print("From test app")
                 await play_music(ctx, filename)
                 await ctx.send('[+]Now playing[+] {}'.format(filename))
                 while voice_channel.is_playing() is True:
-                    await asyncio.sleep(2)
+                    await asyncio.sleep(1)
                 await ctx.send('Done with song!')
 
 
