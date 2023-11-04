@@ -198,7 +198,7 @@ async def play(ctx, url):
 async def test(ctx, url):
     server = ctx.message.guild
     voice_channel = server.voice_client
-    url = analyze_input(url=url)
+    url = analyze_input(url)
     filename = await YTDLSource.from_url(url=url, loop=bot.loop)
     songQueue.enqueue(filename)
     if voice_channel.is_playing():
