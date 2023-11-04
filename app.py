@@ -195,8 +195,8 @@ async def play(ctx, url):
                 await ctx.send('dequeued a song')
 
 
-@bot.command(name='test1', help='testing this application command')
-async def test(ctx, url):
+@bot.command(name='playnow', help='plays song or adds to queue')
+async def play_now(ctx, url):
     server = ctx.message.guild
     voice_channel = server.voice_client
     url = analyze_input(url)
