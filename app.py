@@ -211,10 +211,9 @@ async def test(ctx, url):
             print(filename)
             print('added to queue')
             while len(songQueue) > 0:
-                url = songQueue.dequeue()
-                print(url)
-                print("From test app")
+                filename = songQueue.dequeue()
                 print(filename)
+                print("From test app")
                 await play_music(ctx, filename)
                 await ctx.send('[+]Now playing[+] {}'.format(filename))
                 while voice_channel.is_playing() is True:
