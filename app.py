@@ -195,7 +195,7 @@ async def play(ctx, url):
                 await ctx.send('dequeued a song')
 
 
-@bot.command(name='playnow', help='plays song or adds to queue')
+@bot.command(name='playnow', aliases=["pn"],help='plays song or adds to queue')
 async def play_now(ctx, url):
     server = ctx.message.guild
     voice_channel = server.voice_client
@@ -203,11 +203,11 @@ async def play_now(ctx, url):
     filename = await YTDLSource.from_url(url=url, loop=bot.loop)
     if voice_channel.is_playing():
         async with ctx.typing():
-            await ctx.send('Song is playing!  adding to queue')
+            await ctx.send('Song is playing!  adding to queue {}'.format(filename))
             songQueue.enqueue(filename)
     else:
         async with ctx.typing():
-            await ctx.send('Song is added to queue!  Starting play!')
+            await ctx.send('Song {} is added to queue!  Starting play!'.format(filename))
             songQueue.enqueue(filename)
             print(filename)
             print('added to queue')
