@@ -200,13 +200,16 @@ async def test(ctx, url):
     voice_channel = server.voice_client
     url = analyze_input(url)
     filename = await YTDLSource.from_url(url=url, loop=bot.loop)
-    songQueue.enqueue(filename)
     if voice_channel.is_playing():
         async with ctx.typing():
             await ctx.send('Song is playing!  adding to queue')
+            songQueue.enqueue(filename)
     else:
         async with ctx.typing():
             await ctx.send('Song is added to queue!  Starting play!')
+            songQueue.enqueue(filename)
+            print(filename)
+            print('added to queue')
             while len(songQueue) > 0:
                 url = songQueue.dequeue()
                 print(url)
