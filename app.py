@@ -195,18 +195,19 @@ async def play(ctx, url):
                 await ctx.send('dequeued a song')
 
 
+def is_connected(ctx):
+    voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
+    return (voice_client and voice_client.is_connected())
+
+
 @bot.command(name='playnow', aliases=["pn"],help='plays song or adds to queue')
 async def play_now(ctx, url):
     server = ctx.message.guild
     voice_channel = server.voice_client
-    if not ctx.message.author.voice:
-        ctx.send('Bot not in channel, attempting to join...')
-        await join(ctx)
-
     url = analyze_input(url)
     filename = await YTDLSource.from_url(url=url, loop=bot.loop)
     print('queueing {} from playnow function!'.format(filename))  # let's have logs because why not?
-    if voice_channel.is_playing():
+    if voice_channel.is_playing() is True:
         async with ctx.typing():
             await ctx.send('Song is playing!  adding to queue {}'.format(filename))
             songQueue.enqueue(filename)
