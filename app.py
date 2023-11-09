@@ -1,3 +1,4 @@
+#written by Caleb Schwalb as a free music bot for discord
 import asyncio
 import random
 
@@ -197,7 +198,7 @@ async def play(ctx, url):
 
 def is_connected(ctx):
     voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
-    return (voice_client and voice_client.is_connected())
+    return (voice_client.is_connected())
 
 
 @bot.command(name='playnow', aliases=["pn"],help='plays song or adds to queue')
@@ -276,7 +277,6 @@ async def stop(ctx):
 async def roll_20(ctx):
     randomNumber = random.randint(0, 20)
     await ctx.send(f'The number generated is:  {randomNumber}')
-
 
 if __name__ == "__main__":
     bot.run(DISCORD_TOKEN)
