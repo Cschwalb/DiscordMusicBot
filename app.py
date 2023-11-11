@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 import yt_dlp as youtube_dl
 from _collections import deque
 
+
 class Queue:
     def __init__(self, *elements):
         self._elements = deque(elements)
@@ -40,7 +41,7 @@ youtube_dl.utils.bug_reports_message = lambda: ''
 ytdl_format_options = {
     'format': 'bestaudio/best',
     'restrictfilenames': True,
-    'noplaylist': True, # perhaps change to false
+    'noplaylist': True,  # perhaps change to false
     'nocheckcertificate': True,
     'ignoreerrors': False,
     'logtostderr': False,
@@ -124,7 +125,7 @@ async def playNow(ctx, url):
     if not voice_channel.is_playing():
         async with ctx.typing():
             url = analyze_input(url)
-            filename = await YTDLSource.from_url(url = url, loop = bot.loop)
+            filename = await YTDLSource.from_url(url=url, loop=bot.loop)
             print('playing {}'.format(filename))
             await ctx.send('Filename added to play now!:  {}'.format(filename))
             await play_music(ctx, filename)
@@ -169,11 +170,12 @@ def analyze_input(analysis):
 def search_youtube(keyword) -> str:  # thank you youtube
     try:
         with youtube_dl.YoutubeDL(ytdl_format_options) as ydl:
-            info = ydl.extract_info('ytsearch:' + keyword + ' --max-downloads 1', download=False)['entries'][0] # grab the first instance
+            info = ydl.extract_info('ytsearch:' + keyword + ' --max-downloads 1', download=False)['entries'][
+                0]  # grab the first instance
     except Exception:
         print(str(Exception))
         return 'ERROR'
-    return info['webpage_url'] # subject to change as youtube is a pain...
+    return info['webpage_url']  # subject to change as youtube is a pain...
 
 
 @bot.command(name='playsingle', help='To play song')
@@ -200,7 +202,7 @@ def is_connected(ctx):
     return (voice_client and voice_client.is_connected())
 
 
-@bot.command(name='playnow', aliases=["pn"],help='plays song or adds to queue')
+@bot.command(name='playnow', aliases=["pn"], help='plays song or adds to queue')
 async def play_now(ctx, url):
     server = ctx.message.guild
     voice_channel = server.voice_client
@@ -245,7 +247,7 @@ async def play_music(ctx, song):
         await ctx.send('Bot not in channel')
 
 
-@bot.command(name='skip', help='This command skips the song') # because we have a loop pausing it will end the song
+@bot.command(name='skip', help='This command skips the song')  # because we have a loop pausing it will end the song
 async def skip(ctx):
     voice_client = ctx.message.guild.voice_client
     if voice_client.is_playing():
@@ -276,6 +278,33 @@ async def stop(ctx):
 async def roll_20(ctx):
     randomNumber = random.randint(0, 20)
     await ctx.send(f'The number generated is:  {randomNumber}')
+
+
+@bot.command(name='list', help='Shows the queue with numbers denoting the position')
+async def list_queue(ctx):
+    stringBuilder = """
+    '''
+    """
+    cnt = 1
+    for item in songQueue:
+        stringBuilder += str(cnt) + " " + str(item) + "\n"
+        cnt += 1
+    stringBuilder += "'''"
+    print(stringBuilder)
+    async with ctx.typing():
+        await ctx.send(stringBuilder)
+
+
+@bot.command(name='remove', help='Removes from queue')
+async def remove_from_queue(ctx, argument):
+    removeIndex = argument - 1
+    cnt = 1
+    while cnt <= songQueue.__len__():
+        if len(songQueue) >= argument and cnt != argument:
+            songQueue.enqueue(songQueue.dequeue())
+        else:
+            print("Removing this item.")
+        cnt += 1
 
 
 if __name__ == "__main__":
