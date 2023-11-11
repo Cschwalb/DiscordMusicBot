@@ -241,9 +241,12 @@ async def play_music(ctx, song):
         voice_channel = server.voice_client
         async with ctx.typing():
             voice_channel.play(discord.FFmpegPCMAudio(executable="ffmpeg.exe", source=song))
-    except Exception:
-        print(str(Exception))
+    except Exception as e:
         await ctx.send('Bot not in channel')
+        print(str(e))
+        print(e.__cause__)
+        print(type(e))
+
 
 
 @bot.command(name='skip', help='This command skips the song') # because we have a loop pausing it will end the song
