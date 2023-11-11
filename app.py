@@ -1,4 +1,6 @@
 import asyncio
+import collections
+import copy
 import random
 
 import discord
@@ -8,6 +10,7 @@ import os
 from dotenv import load_dotenv
 import yt_dlp as youtube_dl
 from _collections import deque
+import queue
 
 
 class Queue:
@@ -32,6 +35,8 @@ load_dotenv()
 # Get the API token from the .env file.
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 songQueue = Queue()
+sQueue = queue.Queue()
+deq = deque()
 intents = discord.Intents().all()
 client = discord.Client(intents=intents)
 bot = commands.Bot(command_prefix='!', intents=intents)
@@ -113,6 +118,8 @@ async def addToList(ctx, url):
         url = analyze_input(url)
         filename = await YTDLSource.from_url(url=url, loop=bot.loop)
         songQueue.enqueue(filename)
+        sQueue.put(filename)
+        deq.append(filename)
         print("added file to enqueue")
         print(filename)
         await ctx.send('Filename added to queue:  {}'.format(filename))
@@ -185,16 +192,15 @@ async def play(ctx, url):
     async with ctx.typing():
         filename = await YTDLSource.from_url(url, loop=bot.loop)
         songQueue.enqueue(filename)
+        sQueue.put(filename)
+        deq.append(filename)
         print("added song to queue")
         await ctx.send('added new file to queue')
-        while songQueue.__len__() > 0:
-            url = songQueue.dequeue()
+        while len(deq) > 0:  # songQueue
+            url = deq.pop()
             print(url)
             await play_music(ctx, url)
             await ctx.send('[+]Now playing[+] {}'.format(url))
-            if songQueue.__len__() > 0:  # just do a check to avoid any exceptions
-                songQueue.dequeue()
-                await ctx.send('dequeued a song')
 
 
 def is_connected(ctx):
@@ -213,12 +219,18 @@ async def play_now(ctx, url):
         async with ctx.typing():
             await ctx.send('Song is playing!  adding to queue {}'.format(filename))
             songQueue.enqueue(filename)
+            sQueue.put(filename)
+            deq.append(filename)
     else:
         async with ctx.typing():
             await ctx.send('Song {} is added to queue!  Starting play!'.format(filename))
             songQueue.enqueue(filename)
-            while len(songQueue) > 0:
+            sQueue.put(filename)
+            deq.append(filename)
+            while len(deq) > 0:
                 filename = songQueue.dequeue()
+                filename = sQueue.get()
+                filename = deq.pop()
                 await play_music(ctx, filename)
                 await ctx.send('[+]Now playing[+] {}'.format(filename))
                 while voice_channel.is_playing() is True:
@@ -251,7 +263,7 @@ async def play_music(ctx, song):
 async def skip(ctx):
     voice_client = ctx.message.guild.voice_client
     if voice_client.is_playing():
-        await voice_client.pause()
+        voice_client.pause()
     else:
         await ctx.send("The bot is not playing anything at the moment.")
 
@@ -276,35 +288,40 @@ async def stop(ctx):
 
 @bot.command(name='roll20', help='rolls a twenty sided dices to see what we get')
 async def roll_20(ctx):
-    randomNumber = random.randint(0, 20)
+    randomNumber = random.randint(1, 20)
     await ctx.send(f'The number generated is:  {randomNumber}')
 
 
+def cloning(deq1) -> deque:
+    li_copy = deq1[:]
+    return li_copy
+
+
 @bot.command(name='list', help='Shows the queue with numbers denoting the position')
-async def list_queue(ctx):
+async def list_dequeue(ctx):
+    sOtherList = collections.deque()
     stringBuilder = """
-    '''
+    ```\n
     """
-    cnt = 1
-    for item in songQueue:
+    cnt = 0
+    lenOfS = len(deq)
+    while cnt < lenOfS:
+        item = deq.pop()
         stringBuilder += str(cnt) + " " + str(item) + "\n"
         cnt += 1
-    stringBuilder += "'''"
+        sOtherList.append(item)  # replace what we popped
+    stringBuilder += "```"
     print(stringBuilder)
     async with ctx.typing():
         await ctx.send(stringBuilder)
 
+    while sOtherList:
+        deq.append(sOtherList.pop())
+
 
 @bot.command(name='remove', help='Removes from queue')
-async def remove_from_queue(ctx, argument):
-    removeIndex = argument - 1
-    cnt = 1
-    while cnt <= songQueue.__len__():
-        if len(songQueue) >= argument and cnt != argument:
-            songQueue.enqueue(songQueue.dequeue())
-        else:
-            print("Removing this item.")
-        cnt += 1
+async def remove_from_queue(ctx, argument: int):
+    del deq[argument]
 
 
 if __name__ == "__main__":
