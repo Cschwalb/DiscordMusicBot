@@ -1,5 +1,6 @@
-#written by Caleb Schwalb as a free music bot for discord
 import asyncio
+import collections
+import copy
 import random
 
 import discord
@@ -9,6 +10,8 @@ import os
 from dotenv import load_dotenv
 import yt_dlp as youtube_dl
 from _collections import deque
+import queue
+
 
 class Queue:
     def __init__(self, *elements):
@@ -32,6 +35,8 @@ load_dotenv()
 # Get the API token from the .env file.
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 songQueue = Queue()
+sQueue = queue.Queue()
+deq = deque()
 intents = discord.Intents().all()
 client = discord.Client(intents=intents)
 bot = commands.Bot(command_prefix='!', intents=intents)
@@ -41,7 +46,7 @@ youtube_dl.utils.bug_reports_message = lambda: ''
 ytdl_format_options = {
     'format': 'bestaudio/best',
     'restrictfilenames': True,
-    'noplaylist': True, # perhaps change to false
+    'noplaylist': True,  # perhaps change to false
     'nocheckcertificate': True,
     'ignoreerrors': False,
     'logtostderr': False,
@@ -113,6 +118,8 @@ async def addToList(ctx, url):
         url = analyze_input(url)
         filename = await YTDLSource.from_url(url=url, loop=bot.loop)
         songQueue.enqueue(filename)
+        sQueue.put(filename)
+        deq.append(filename)
         print("added file to enqueue")
         print(filename)
         await ctx.send('Filename added to queue:  {}'.format(filename))
@@ -125,7 +132,7 @@ async def playNow(ctx, url):
     if not voice_channel.is_playing():
         async with ctx.typing():
             url = analyze_input(url)
-            filename = await YTDLSource.from_url(url = url, loop = bot.loop)
+            filename = await YTDLSource.from_url(url=url, loop=bot.loop)
             print('playing {}'.format(filename))
             await ctx.send('Filename added to play now!:  {}'.format(filename))
             await play_music(ctx, filename)
@@ -170,11 +177,12 @@ def analyze_input(analysis):
 def search_youtube(keyword) -> str:  # thank you youtube
     try:
         with youtube_dl.YoutubeDL(ytdl_format_options) as ydl:
-            info = ydl.extract_info('ytsearch:' + keyword + ' --max-downloads 1', download=False)['entries'][0] # grab the first instance
+            info = ydl.extract_info('ytsearch:' + keyword + ' --max-downloads 1', download=False)['entries'][
+                0]  # grab the first instance
     except Exception:
         print(str(Exception))
         return 'ERROR'
-    return info['webpage_url'] # subject to change as youtube is a pain...
+    return info['webpage_url']  # subject to change as youtube is a pain...
 
 
 @bot.command(name='playsingle', help='To play song')
@@ -184,24 +192,23 @@ async def play(ctx, url):
     async with ctx.typing():
         filename = await YTDLSource.from_url(url, loop=bot.loop)
         songQueue.enqueue(filename)
+        sQueue.put(filename)
+        deq.append(filename)
         print("added song to queue")
         await ctx.send('added new file to queue')
-        while songQueue.__len__() > 0:
-            url = songQueue.dequeue()
+        while len(deq) > 0:  # songQueue
+            url = deq.pop()
             print(url)
             await play_music(ctx, url)
             await ctx.send('[+]Now playing[+] {}'.format(url))
-            if songQueue.__len__() > 0:  # just do a check to avoid any exceptions
-                songQueue.dequeue()
-                await ctx.send('dequeued a song')
 
 
 def is_connected(ctx):
     voice_client = discord.utils.get(ctx.bot.voice_clients, guild=ctx.guild)
-    return (voice_client.is_connected())
+    return (voice_client and voice_client.is_connected())
 
 
-@bot.command(name='playnow', aliases=["pn"],help='plays song or adds to queue')
+@bot.command(name='playnow', aliases=["pn"], help='plays song or adds to queue')
 async def play_now(ctx, url):
     server = ctx.message.guild
     voice_channel = server.voice_client
@@ -212,12 +219,16 @@ async def play_now(ctx, url):
         async with ctx.typing():
             await ctx.send('Song is playing!  adding to queue {}'.format(filename))
             songQueue.enqueue(filename)
+            sQueue.put(filename)
+            deq.appendleft(filename)
     else:
         async with ctx.typing():
             await ctx.send('Song {} is added to queue!  Starting play!'.format(filename))
             songQueue.enqueue(filename)
-            while len(songQueue) > 0:
-                filename = songQueue.dequeue()
+            sQueue.put(filename)
+            deq.appendleft(filename)
+            while len(deq) > 0:
+                filename = deq.pop()
                 await play_music(ctx, filename)
                 await ctx.send('[+]Now playing[+] {}'.format(filename))
                 while voice_channel.is_playing() is True:
@@ -241,19 +252,16 @@ async def play_music(ctx, song):
         voice_channel = server.voice_client
         async with ctx.typing():
             voice_channel.play(discord.FFmpegPCMAudio(executable="ffmpeg.exe", source=song))
-    except Exception as e:
+    except Exception:
+        print(str(Exception))
         await ctx.send('Bot not in channel')
-        print(str(e))
-        print(e.__cause__)
-        print(type(e))
 
 
-
-@bot.command(name='skip', help='This command skips the song') # because we have a loop pausing it will end the song
+@bot.command(name='skip', help='This command skips the song')  # because we have a loop pausing it will end the song
 async def skip(ctx):
     voice_client = ctx.message.guild.voice_client
     if voice_client.is_playing():
-        await voice_client.pause()
+        voice_client.pause()
     else:
         await ctx.send("The bot is not playing anything at the moment.")
 
@@ -278,8 +286,41 @@ async def stop(ctx):
 
 @bot.command(name='roll20', help='rolls a twenty sided dices to see what we get')
 async def roll_20(ctx):
-    randomNumber = random.randint(0, 20)
+    randomNumber = random.randint(1, 20)
     await ctx.send(f'The number generated is:  {randomNumber}')
+
+
+def cloning(deq1) -> deque:
+    li_copy = deq1[:]
+    return li_copy
+
+
+@bot.command(name='list', help='Shows the queue with numbers denoting the position')
+async def list_dequeue(ctx):
+    sOtherList = collections.deque()
+    stringBuilder = """
+    ```\n
+    """
+    cnt = 0
+    lenOfS = len(deq)
+    while cnt < lenOfS:
+        item = deq.pop()
+        stringBuilder += str(cnt) + " " + str(item) + "\n"
+        cnt += 1
+        sOtherList.append(item)  # replace what we popped
+    stringBuilder += "```"
+    print(stringBuilder)
+    async with ctx.typing():
+        await ctx.send(stringBuilder)
+
+    while sOtherList:
+        deq.append(sOtherList.pop())
+
+
+@bot.command(name='remove', help='Removes from queue')
+async def remove_from_queue(ctx, argument: int):
+    del deq[argument]
+
 
 if __name__ == "__main__":
     bot.run(DISCORD_TOKEN)
