@@ -220,13 +220,13 @@ async def play_now(ctx, url):
             await ctx.send('Song is playing!  adding to queue {}'.format(filename))
             songQueue.enqueue(filename)
             sQueue.put(filename)
-            deq.append(filename)
+            deq.appendleft(filename)
     else:
         async with ctx.typing():
             await ctx.send('Song {} is added to queue!  Starting play!'.format(filename))
             songQueue.enqueue(filename)
             sQueue.put(filename)
-            deq.append(filename)
+            deq.appendleft(filename)
             while len(deq) > 0:
                 filename = songQueue.dequeue()
                 filename = sQueue.get()
