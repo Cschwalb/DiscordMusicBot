@@ -303,23 +303,22 @@ async def list_dequeue(ctx):
     """
     cnt = 0
     lenOfS = len(deq)
+    sOtherList = deq.copy() #make a copy
     while cnt < lenOfS:
-        item = deq.pop()
+        item = sOtherList.pop() # this is causing lag during playtime so lets make a copy
         stringBuilder += str(cnt) + " " + str(item) + "\n"
         cnt += 1
-        sOtherList.append(item)  # replace what we popped
     stringBuilder += "```"
     print(stringBuilder)
     async with ctx.typing():
         await ctx.send(stringBuilder)
 
-    while sOtherList:
-        deq.append(sOtherList.pop())
-
 
 @bot.command(name='remove', help='Removes from queue')
 async def remove_from_queue(ctx, argument: int):
     del deq[argument]
+    while ctx.typing():
+        await ctx.send('removed from queue')
 
 
 if __name__ == "__main__":
