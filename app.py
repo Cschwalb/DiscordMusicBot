@@ -2,7 +2,6 @@ import asyncio
 import collections
 import copy
 import random
-
 import discord
 import yt_dlp.YoutubeDL
 from discord.ext import commands, tasks
@@ -10,33 +9,12 @@ import os
 from dotenv import load_dotenv
 import yt_dlp as youtube_dl
 from _collections import deque
-import queue
-
-
-class Queue:
-    def __init__(self, *elements):
-        self._elements = deque(elements)
-
-    def __len__(self):
-        return len(self._elements)
-
-    def __iter__(self):
-        while len(self) > 0:
-            yield self.dequeue()
-
-    def enqueue(self, element):
-        self._elements.append(element)
-
-    def dequeue(self):
-        return self._elements.popleft()
 
 
 load_dotenv()
 # Get the API token from the .env file.
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-songQueue = Queue()
-sQueue = queue.Queue()
-deq = deque()
+deq = deque() #important
 intents = discord.Intents().all()
 client = discord.Client(intents=intents)
 bot = commands.Bot(command_prefix='!', intents=intents)
@@ -117,9 +95,7 @@ async def addToList(ctx, url):
     async with ctx.typing():
         url = analyze_input(url)
         filename = await YTDLSource.from_url(url=url, loop=bot.loop)
-        songQueue.enqueue(filename)
-        sQueue.put(filename)
-        deq.append(filename)
+        deq.appendleft(filename)
         print("added file to enqueue")
         print(filename)
         await ctx.send('Filename added to queue:  {}'.format(filename))
@@ -151,8 +127,8 @@ async def play_list(ctx):
     voice_channel = server.voice_client
     if not voice_channel.is_playing():
         async with ctx.typing():
-            if len(songQueue) > 0:
-                for song in list(songQueue):
+            if len(deq) > 0:
+                for song in list(deq):
                     await play_music(ctx, song)
                     await ctx.send('[+]Now playing[+] {}'.format(song))
                     while voice_channel.is_playing() is True:
@@ -191,8 +167,6 @@ async def play(ctx, url):
     voice_channel = server.voice_client
     async with ctx.typing():
         filename = await YTDLSource.from_url(url, loop=bot.loop)
-        songQueue.enqueue(filename)
-        sQueue.put(filename)
         deq.append(filename)
         print("added song to queue")
         await ctx.send('added new file to queue')
@@ -218,14 +192,10 @@ async def play_now(ctx, url):
     if voice_channel.is_playing() is True:
         async with ctx.typing():
             await ctx.send('Song is playing!  adding to queue {}'.format(filename))
-            songQueue.enqueue(filename)
-            sQueue.put(filename)
             deq.appendleft(filename)
     else:
         async with ctx.typing():
             await ctx.send('Song {} is added to queue!  Starting play!'.format(filename))
-            songQueue.enqueue(filename)
-            sQueue.put(filename)
             deq.appendleft(filename)
             while len(deq) > 0:
                 filename = deq.pop()
@@ -297,15 +267,14 @@ def cloning(deq1) -> deque:
 
 @bot.command(name='list', help='Shows the queue with numbers denoting the position')
 async def list_dequeue(ctx):
-    sOtherList = collections.deque()
+    sOtherList = deq.copy()
     stringBuilder = """
     ```\n
     """
     cnt = 0
     lenOfS = len(deq)
-    sOtherList = deq.copy() #make a copy
     while cnt < lenOfS:
-        item = sOtherList.pop() # this is causing lag during playtime so lets make a copy
+        item = sOtherList.pop()
         stringBuilder += str(cnt) + " " + str(item) + "\n"
         cnt += 1
     stringBuilder += "```"
@@ -317,8 +286,6 @@ async def list_dequeue(ctx):
 @bot.command(name='remove', help='Removes from queue')
 async def remove_from_queue(ctx, argument: int):
     del deq[argument]
-    while ctx.typing():
-        await ctx.send('removed from queue')
 
 
 if __name__ == "__main__":
