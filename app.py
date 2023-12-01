@@ -3,28 +3,42 @@ import collections
 import copy
 import random
 import discord
-import yt_dlp.YoutubeDL
+#import yt_dlp.YoutubeDL
 from discord.ext import commands, tasks
 import os
 from dotenv import load_dotenv
 import yt_dlp as youtube_dl
 from _collections import deque
-
+from spotipy.oauth2 import SpotifyOAuth
+import spotipy
 
 load_dotenv()
 # Get the API token from the .env file.
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+
+## spotify oauth client stuff
+SPOTIPY_CLIENT_ID = os.getenv("SPOTIPY_CLIENT_ID")
+SPOTIPY_CLIENT_SECRET = os.getenv("SPOTIPY_CLIENT_SECRET")
+SPOTIPY_REDIRECT_URI = os.getenv("SPOTIPY_REDIRECT_URI")
+oauth = spotipy.SpotifyOAuth(client_id=SPOTIPY_CLIENT_ID,
+                             client_secret=SPOTIPY_CLIENT_SECRET,
+                             redirect_uri=SPOTIPY_REDIRECT_URI)
+oauthToken = oauth.get_access_token(as_dict=False)
+
+
 deq = deque() #important
 intents = discord.Intents().all()
 client = discord.Client(intents=intents)
 bot = commands.Bot(command_prefix='!', intents=intents)
+
+
 
 youtube_dl.utils.bug_reports_message = lambda: ''
 
 ytdl_format_options = {
     'format': 'bestaudio/best',
     'restrictfilenames': True,
-    'noplaylist': True,  # perhaps change to false
+    'noplaylist': False,  # perhaps change to false
     'nocheckcertificate': True,
     'ignoreerrors': False,
     'logtostderr': False,
@@ -142,8 +156,11 @@ async def play_list(ctx):
 
 def analyze_input(analysis):
     output = ""
-    if "http" in analysis:
+    if "youtube.com" in analysis:
         print('url analyzed!')
+        output = analysis
+    elif "open.spotify.com" in analysis:
+        print('Spotify Link!')
         output = analysis
     else:
         output = search_youtube(analysis)
@@ -153,7 +170,7 @@ def analyze_input(analysis):
 def search_youtube(keyword) -> str:  # thank you youtube
     try:
         with youtube_dl.YoutubeDL(ytdl_format_options) as ydl:
-            info = ydl.extract_info('ytsearch:' + keyword + ' --max-downloads 1', download=False)['entries'][
+            info = ydl.extract_info('ytsearch:' + keyword, download=False)['entries'][
                 0]  # grab the first instance
     except Exception:
         print(str(Exception))
@@ -268,15 +285,12 @@ def cloning(deq1) -> deque:
 @bot.command(name='list', help='Shows the queue with numbers denoting the position')
 async def list_dequeue(ctx):
     sOtherList = deq.copy()
-    stringBuilder = """
-    ```\n
-    """
-    cnt = 0
-    lenOfS = len(deq)
-    while cnt < lenOfS:
+    stringBuilder = """```\n"""
+    index = 0
+    while index < len(deq):
         item = sOtherList.pop()
-        stringBuilder += str(cnt) + " " + str(item) + "\n"
-        cnt += 1
+        stringBuilder += str(index) + " " + str(item) + "\n"
+        index += 1
     stringBuilder += "```"
     print(stringBuilder)
     async with ctx.typing():
@@ -286,6 +300,26 @@ async def list_dequeue(ctx):
 @bot.command(name='remove', help='Removes from queue')
 async def remove_from_queue(ctx, argument: int):
     del deq[argument]
+    await ctx.send(f'removed {argument} from deque')
+
+@bot.command(name='spotify', help='Plays from spotify')
+async def spotify_test(ctx, message):
+    print(message)
+    if "open.spotify.com" in message:
+        # Extract Spotify track ID
+        track_id = message.split('!')[-1].split('?')[0]
+
+        # Get Spotify track details
+        sp = spotipy.Spotify(auth=oauthToken)
+        track = sp.track(track_id)
+        track_name = track['name']
+        track_url = track['external_urls']['spotify']
+        # Join the voice channel
+        channel = ctx.author.voice.channel
+        voice_channel = await channel.connect()
+
+        # Play the track
+        voice_channel.play(discord.FFmpegPCMAudio(executable="ffmpeg.exe", source=track_url, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'))
 
 
 if __name__ == "__main__":
