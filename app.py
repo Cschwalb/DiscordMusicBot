@@ -3,7 +3,6 @@ import collections
 import copy
 import random
 import discord
-#import yt_dlp.YoutubeDL
 from discord.ext import commands, tasks
 import os
 from dotenv import load_dotenv
@@ -13,10 +12,6 @@ from _collections import deque
 load_dotenv()
 # Get the API token from the .env file.
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-
-
-pause = False
-
 deq = deque() #important
 intents = discord.Intents().all()
 client = discord.Client(intents=intents)
@@ -157,9 +152,9 @@ def search_youtube(keyword) -> str:  # thank you youtube
         with youtube_dl.YoutubeDL(ytdl_format_options) as ydl:
             info = ydl.extract_info('ytsearch:' + keyword, download=False)['entries'][
                 0]  # grab the first instance
-    except Exception:
-        print(str(Exception))
-        return 'ERROR'
+    except Exception as e:
+        print(str(e))
+        return 'JuiceWrld2Hours' #lol
     return info['webpage_url']  # subject to change as youtube is a pain...
 
 
@@ -204,8 +199,6 @@ async def play_now(ctx, url):
                 await play_music(ctx, filename)
                 await ctx.send('```[+]Now playing[+] {}```'.format(filename))
                 while voice_channel.is_playing() is True:
-                    await asyncio.sleep(1)
-                while pause is True:
                     await asyncio.sleep(1)
                 await ctx.send('```Done with song!```')
 
