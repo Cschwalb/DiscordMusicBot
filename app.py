@@ -196,6 +196,7 @@ async def play_now(ctx, url):
             deq.appendleft(filename)
             while len(deq) > 0:
                 filename = deq.pop()
+
                 await play_music(ctx, filename)
                 await ctx.send('```[+]Now playing[+] {}```'.format(filename))
                 while voice_channel.is_playing() is True:
