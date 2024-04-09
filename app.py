@@ -9,30 +9,18 @@ import os
 from dotenv import load_dotenv
 import yt_dlp as youtube_dl
 from _collections import deque
-from spotipy.oauth2 import SpotifyOAuth
-import spotipy
 
 load_dotenv()
 # Get the API token from the .env file.
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 
-## spotify oauth client stuff
-SPOTIPY_CLIENT_ID = os.getenv("SPOTIPY_CLIENT_ID")
-SPOTIPY_CLIENT_SECRET = os.getenv("SPOTIPY_CLIENT_SECRET")
-SPOTIPY_REDIRECT_URI = os.getenv("SPOTIPY_REDIRECT_URI")
-oauth = spotipy.SpotifyOAuth(client_id=SPOTIPY_CLIENT_ID,
-                             client_secret=SPOTIPY_CLIENT_SECRET,
-                             redirect_uri=SPOTIPY_REDIRECT_URI)
-oauthToken = oauth.get_access_token(as_dict=False)
 
+pause = False
 
 deq = deque() #important
 intents = discord.Intents().all()
 client = discord.Client(intents=intents)
 bot = commands.Bot(command_prefix='!', intents=intents)
-
-
-
 youtube_dl.utils.bug_reports_message = lambda: ''
 
 ytdl_format_options = {
@@ -156,11 +144,8 @@ async def play_list(ctx):
 
 def analyze_input(analysis):
     output = ""
-    if "youtube.com" in analysis:
+    if "http" in analysis:
         print('url analyzed!')
-        output = analysis
-    elif "open.spotify.com" in analysis:
-        print('Spotify Link!')
         output = analysis
     else:
         output = search_youtube(analysis)
@@ -208,19 +193,21 @@ async def play_now(ctx, url):
     print('queueing {} from playnow function!'.format(filename))  # let's have logs because why not?
     if voice_channel.is_playing() is True:
         async with ctx.typing():
-            await ctx.send('Song is playing!  adding to queue {}'.format(filename))
+            await ctx.send('```Song is playing!  adding to queue {}```'.format(filename))
             deq.appendleft(filename)
     else:
         async with ctx.typing():
-            await ctx.send('Song {} is added to queue!  Starting play!'.format(filename))
+            await ctx.send('```Song {} is added to queue!  Starting play!```'.format(filename))
             deq.appendleft(filename)
             while len(deq) > 0:
                 filename = deq.pop()
                 await play_music(ctx, filename)
-                await ctx.send('[+]Now playing[+] {}'.format(filename))
+                await ctx.send('```[+]Now playing[+] {}```'.format(filename))
                 while voice_channel.is_playing() is True:
                     await asyncio.sleep(1)
-                await ctx.send('Done with song!')
+                while pause is True:
+                    await asyncio.sleep(1)
+                await ctx.send('```Done with song!```')
 
 
 @bot.command(name='cleanup', help='Cleans up webm files')
@@ -230,7 +217,7 @@ async def remove_files(ctx):
         for file in files:
             if file.endswith('.webm'):
                 os.remove(file)
-                await ctx.send('Bot deleting one file!')
+                await ctx.send('```Bot deleting one file!```')
 
 
 async def play_music(ctx, song):
@@ -239,8 +226,9 @@ async def play_music(ctx, song):
         voice_channel = server.voice_client
         async with ctx.typing():
             voice_channel.play(discord.FFmpegPCMAudio(executable="ffmpeg.exe", source=song))
-    except Exception:
-        print(str(Exception))
+            is_playing = True
+    except Exception as e:
+        print(str(e))
         await ctx.send('Bot not in channel')
 
 
@@ -300,26 +288,8 @@ async def list_dequeue(ctx):
 @bot.command(name='remove', help='Removes from queue')
 async def remove_from_queue(ctx, argument: int):
     del deq[argument]
-    await ctx.send(f'removed {argument} from deque')
 
-@bot.command(name='spotify', help='Plays from spotify')
-async def spotify_test(ctx, message):
-    print(message)
-    if "open.spotify.com" in message:
-        # Extract Spotify track ID
-        track_id = message.split('!')[-1].split('?')[0]
-
-        # Get Spotify track details
-        sp = spotipy.Spotify(auth=oauthToken)
-        track = sp.track(track_id)
-        track_name = track['name']
-        track_url = track['external_urls']['spotify']
-        # Join the voice channel
-        channel = ctx.author.voice.channel
-        voice_channel = await channel.connect()
-
-        # Play the track
-        voice_channel.play(discord.FFmpegPCMAudio(executable="ffmpeg.exe", source=track_url, before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'))
+    await ctx.send(f'```removed {argument} from deque```')
 
 
 if __name__ == "__main__":
