@@ -270,7 +270,7 @@ async def list_dequeue(ctx):
     stringBuilder = """```\n"""
     index = 0
     while index < len(deq):
-        item = sOtherList.pop()
+        item = sOtherList.popleft()
         stringBuilder += str(index) + " " + str(item) + "\n"
         index += 1
     stringBuilder += "```"
@@ -281,9 +281,15 @@ async def list_dequeue(ctx):
 
 @bot.command(name='remove', help='Removes from queue')
 async def remove_from_queue(ctx, argument: int):
-    del deq[argument]
-
+    del deq[argument] #important change for removing an item from the list
     await ctx.send(f'```removed {argument} from deque```')
+
+
+@bot.command(name='endnight', aliases=['en'], help='Removes all items from queue')
+async def remove_all_from_list(ctx):
+    for i in range(0, len(deq)):
+        remove_from_queue(ctx, i)
+    await ctx.send(f'```All items removed from song queue```')
 
 
 if __name__ == "__main__":
