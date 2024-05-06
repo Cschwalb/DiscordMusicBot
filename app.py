@@ -1,6 +1,7 @@
 import asyncio
 import collections
 import copy
+import signal
 import random
 import discord
 from discord.ext import commands, tasks
@@ -9,6 +10,8 @@ from dotenv import load_dotenv
 import yt_dlp as youtube_dl
 from _collections import deque
 
+
+pause = False
 load_dotenv()
 # Get the API token from the .env file.
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
@@ -118,25 +121,6 @@ async def playNow(ctx, url):
         await addToList(ctx, url)
 
 
-@bot.command(name='play', help='play list of songs')
-async def play_list(ctx):
-    server = ctx.message.guild
-    voice_channel = server.voice_client
-    if not voice_channel.is_playing():
-        async with ctx.typing():
-            if len(deq) > 0:
-                for song in list(deq):
-                    await play_music(ctx, song)
-                    await ctx.send('[+]Now playing[+] {}'.format(song))
-                    while voice_channel.is_playing() is True:
-                        await asyncio.sleep(1)
-            else:
-
-                await ctx.send('no songs queued')
-    else:
-        await ctx.send('playing a song already.  Cannot update queue at this time.')
-
-
 def analyze_input(analysis):
     output = ""
     if "http" in analysis:
@@ -148,6 +132,10 @@ def analyze_input(analysis):
 
 
 def search_youtube(keyword) -> str:  # thank you youtube
+    if '&' in keyword:
+        keyword = keyword.split('&')
+        keyword = keyword[0]
+        print(keyword)
     try:
         with youtube_dl.YoutubeDL(ytdl_format_options) as ydl:
             info = ydl.extract_info('ytsearch:' + keyword, download=False)['entries'][
@@ -220,7 +208,7 @@ async def play_music(ctx, song):
         voice_channel = server.voice_client
         async with ctx.typing():
             voice_channel.play(discord.FFmpegPCMAudio(executable="ffmpeg.exe", source=song))
-            is_playing = True
+            await pause(False)
     except Exception as e:
         print(str(e))
         await ctx.send('Bot not in channel')
@@ -290,6 +278,30 @@ async def remove_all_from_list(ctx):
     for i in range(0, len(deq)):
         remove_from_queue(ctx, i)
     await ctx.send(f'```All items removed from song queue```')
+
+
+#!!!test!!!!
+
+async def pause(arg : bool):
+    pause = arg
+
+
+@bot.command(name='pause', alias=['p'], help = 'Pauses the bot.')
+async def pauseBot(ctx):
+    await pause(True)
+    ctx.send("Pausing!")
+    voice_client = ctx.message.guild.voice_client
+    voice_client.pause()
+    while pause:
+        await asyncio.sleep(1)
+    voice_client.resume()
+
+@bot.command(name='resume', alias=['r'], help = 'resumes the bot.')
+async def resumeBot(ctx):
+    await pause(True)
+    ctx.send("Resuming!")
+    ctx.message.guild.voice_client.resume()
+
 
 
 if __name__ == "__main__":
