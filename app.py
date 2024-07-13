@@ -9,9 +9,8 @@ import os
 from dotenv import load_dotenv
 import yt_dlp as youtube_dl
 from _collections import deque
+from pytube import Playlist
 
-
-pause = False
 load_dotenv()
 # Get the API token from the .env file.
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
@@ -110,9 +109,8 @@ async def playNow(ctx, url):
             url = analyze_input(url)
             filename = await YTDLSource.from_url(url=url, loop=bot.loop)
             print('playing {}'.format(filename))
-            await ctx.send('Filename added to play now!:  {}'.format(filename))
             await play_music(ctx, filename)
-            await ctx.send('[+]Now playing[+] {}'.format(filename))
+            await ctx.send('```[+]Now playing[+] {}```'.format(filename))
             while voice_channel.is_playing() is True:
                 await asyncio.sleep(1)
         await ctx.send('Done with song!')
@@ -123,7 +121,7 @@ async def playNow(ctx, url):
 
 def analyze_input(analysis):
     output = ""
-    if "http" in analysis:
+    if "http" in analysis and '&' not in analysis:
         print('url analyzed!')
         output = analysis
     else:
@@ -223,14 +221,6 @@ async def skip(ctx):
         await ctx.send("The bot is not playing anything at the moment.")
 
 
-@bot.command(name='resume', help='Resumes the song')
-async def resume(ctx):
-    voice_client = ctx.message.guild.voice_client
-    if voice_client.is_paused():
-        await voice_client.resume()
-    else:
-        await ctx.send("The bot was not playing anything before this. Use play command")
-
 
 @bot.command(name='stop', help='Stops the song')
 async def stop(ctx):
@@ -279,7 +269,15 @@ async def remove_all_from_list(ctx):
         remove_from_queue(ctx, i)
     await ctx.send(f'```All items removed from song queue```')
 
-
+@bot.command(name='playlist', help='Playlist of music!')
+async def playlist(ctx, url):
+    server = ctx.message.guild
+    voice_channel = server.voice_client
+    playlist = Playlist(url)
+    urls_playlist = []
+    for url in playlist.video_urls:
+        urls_playlist.append(url)
+        await playNow(ctx, url)
 #!!!test!!!!
 
 async def pause(arg : bool):
