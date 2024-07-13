@@ -9,7 +9,7 @@ import os
 from dotenv import load_dotenv
 import yt_dlp as youtube_dl
 from _collections import deque
-
+from pytube import Playlist
 
 pause = False
 load_dotenv()
@@ -265,6 +265,17 @@ async def list_dequeue(ctx):
     print(stringBuilder)
     async with ctx.typing():
         await ctx.send(stringBuilder)
+
+
+@bot.command(name='playlist', help='Playlist of music!')
+async def playlist(ctx, url):
+    server = ctx.message.guild
+    voice_channel = server.voice_client
+    playlist = Playlist(url)
+    urls_playlist = []
+    for url in playlist.video_urls:
+        urls_playlist.append(url)
+        await playNow(ctx, url)
 
 
 @bot.command(name='remove', help='Removes from queue')
