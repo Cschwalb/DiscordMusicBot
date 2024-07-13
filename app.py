@@ -113,7 +113,7 @@ async def playNow(ctx, url):
             await ctx.send('```[+]Now playing[+] {}```'.format(filename))
             while voice_channel.is_playing() is True:
                 await asyncio.sleep(1)
-        await ctx.send('Done with song!')
+        await ctx.send('```Done with song!```')
     else:
         await ctx.send("Already playing a song! adding to queue, use !play to use that queue")
         await addToList(ctx, url)
@@ -152,12 +152,11 @@ async def play(ctx, url):
         filename = await YTDLSource.from_url(url, loop=bot.loop)
         deq.append(filename)
         print("added song to queue")
-        await ctx.send('added new file to queue')
         while len(deq) > 0:  # songQueue
             url = deq.pop()
             print(url)
             await play_music(ctx, url)
-            await ctx.send('[+]Now playing[+] {}'.format(url))
+            await ctx.send('```[+]Now playing[+] {}```'.format(url))
 
 
 def is_connected(ctx):
@@ -278,6 +277,8 @@ async def playlist(ctx, url):
     for url in playlist.video_urls:
         urls_playlist.append(url)
         await playNow(ctx, url)
+
+
 #!!!test!!!!
 
 async def pause(arg : bool):
