@@ -97,7 +97,7 @@ async def addToList(ctx, url):
         deq.appendleft(filename)
         print("added file to enqueue")
         print(filename)
-        await ctx.send('Filename added to queue:  {}'.format(filename))
+        await ctx.send('```Filename added to queue:  {}```'.format(filename))
 
 
 @bot.command(name='p', help='plays song from youtube or link')
@@ -115,7 +115,7 @@ async def playNow(ctx, url):
                 await asyncio.sleep(1)
         await ctx.send('```Done with song!```')
     else:
-        await ctx.send("Already playing a song! adding to queue, use !play to use that queue")
+        await ctx.send("```Already playing a song! adding to queue, use !play to use that queue```")
         await addToList(ctx, url)
 
 
@@ -266,6 +266,7 @@ async def remove_from_queue(ctx, argument: int):
 async def remove_all_from_list(ctx):
     for i in range(0, len(deq)):
         remove_from_queue(ctx, i)
+
     await ctx.send(f'```All items removed from song queue```')
 
 @bot.command(name='playlist', help='Playlist of music!')
