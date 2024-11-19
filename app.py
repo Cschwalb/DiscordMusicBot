@@ -266,7 +266,7 @@ async def remove_from_queue(ctx, argument: int):
 async def remove_all_from_list(ctx):
     for i in range(0, len(deq)):
         remove_from_queue(ctx, i)
-
+        skip(ctx)
     await ctx.send(f'```All items removed from song queue```')
 
 @bot.command(name='playlist', help='Playlist of music!')
@@ -277,30 +277,11 @@ async def playlist(ctx, url):
     urls_playlist = []
     for url in playlist.video_urls:
         urls_playlist.append(url)
-        await playNow(ctx, url)
+        deq.appendleft(url)
+        await ctx.message("```Adding new Song " + url + "````")
 
 
-#!!!test!!!!
-
-async def pause(arg : bool):
-    pause = arg
-
-
-@bot.command(name='pause', alias=['p'], help = 'Pauses the bot.')
-async def pauseBot(ctx):
-    await pause(True)
-    ctx.send("Pausing!")
-    voice_client = ctx.message.guild.voice_client
-    voice_client.pause()
-    while pause:
-        await asyncio.sleep(1)
-    voice_client.resume()
-
-@bot.command(name='resume', alias=['r'], help = 'resumes the bot.')
-async def resumeBot(ctx):
-    await pause(True)
-    ctx.send("Resuming!")
-    ctx.message.guild.voice_client.resume()
+#!!!test!!!
 
 
 
